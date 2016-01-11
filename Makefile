@@ -15,8 +15,8 @@ OBJETS=$(SOURCES:%.cpp=%.o)
 
 #Compilateur et options de compilation
 CCPP=g++
-CFLAGS= -W -Wall -Wextra -pedantic -std=c++0x -I /usr/X11R6/include
-LFLAGS= -L . -L /usr/X11R6/lib  -lpthread -lX11 -lXext -Dcimg_use_xshm  -lm -lgmp
+CFLAGS= -W -Wall -Wextra -pedantic -std=c++11
+LFLAGS= -L . -lm -lgmp
 
 #R�le explicite de construction de l'ex�utable
 $(EXEC):$(OBJETS) Makefile
