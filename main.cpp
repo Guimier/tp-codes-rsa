@@ -1,13 +1,17 @@
 //
-//  TP6_RSA
-//  
+// TP6_RSA
+//
 
 #include <stdio.h>
 #include <iostream>
 #include <gmp.h>
 
-#define BITSTRENGTH  14              /* size of modulus (n) in bits */
+#define BITSTRENGTH 14               /* size of modulus (n) in bits */
 #define PRIMESIZE (BITSTRENGTH / 2)  /* size of the primes p and q  */
+
+#define GN_POWM mpz_powm
+#define GN_NEXTPRIME mpz_nextprime
+#define GN_INVERT mpz_invert
 
 typedef std::pair<mpz_srcptr, mpz_srcptr> rsakey_t;
 
@@ -51,9 +55,9 @@ void generate_e ( mpz_ptr e, gmp_randstate_t randState, mpz_srcptr phi )
 }
 
 
-void  encrypt (mpz_ptr res, mpz_srcptr message, rsakey_t key)
+void encrypt (mpz_ptr res, mpz_srcptr message, rsakey_t key)
 {
-	mpz_powm(res, message, key.first, key.second);
+	GN_POWM(res, message, key.first, key.second);
 }
 
 #define decrypt encrypt
@@ -98,9 +102,9 @@ int main( int, char** )
 	mpz_init( q );
 	
 	mpz_urandomb( tmp1, randState, bits );
-	mpz_nextprime( p, tmp1 );
+	GN_NEXTPRIME ( p, tmp1 );
 	mpz_urandomb( tmp1, randState, bits );
-	mpz_nextprime( q, tmp1 );
+	GN_NEXTPRIME ( q, tmp1 );
 
 	std::cout << "Random Prime 'p' = " << p <<  std::endl;
 	std::cout << "Random Prime 'q' = " << q <<  std::endl;
@@ -139,7 +143,7 @@ int main( int, char** )
 	 *  Step 4 : Calculate unique d such that ed = 1(mod x)
 	 */
 	//mpz_init_set_str( d, "1019", 0 );
-	mpz_invert( d, e, phi );
+	GN_INVERT ( d, e, phi );
 	std::cout << "\t d = " << d << std::endl << std::endl;
 	
 	rsakey_t pub = std::make_pair( e, n );
