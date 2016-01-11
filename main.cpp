@@ -9,11 +9,58 @@
 #define BITSTRENGTH 14               /* size of modulus (n) in bits */
 #define PRIMESIZE (BITSTRENGTH / 2)  /* size of the primes p and q  */
 
-#define GN_POWM mpz_powm
+#define GN_POWM rew_powm
 #define GN_NEXTPRIME mpz_nextprime
 #define GN_INVERT mpz_invert
 
 typedef std::pair<mpz_srcptr, mpz_srcptr> rsakey_t;
+
+/*----- Rewritten functions -----*/
+
+// Not managing the exp < 0 case since RSA does not need it.
+void rew_powm( mpz_t rop, const mpz_t base, const mpz_t exp, const mpz_t mod )
+{
+	// rop = 1
+	mpz_set_ui( rop, 1 );
+	
+	mpz_t rest;
+	mpz_init( rest ); // portion of the exponent not yet applied
+	// rest = exp
+	mpz_set( rest, exp );
+	
+	mpz_t partiallyExponented;
+	mpz_init( partiallyExponented );
+	// partiallyExponented = base % mod
+	mpz_mod( partiallyExponented, base, mod );
+	
+	mpz_t tmp;
+	mpz_init( tmp ); // temporary var for intermediate values.
+	
+	// mpz_sgn is an easy way to test ( rest != 0 )
+	while ( mpz_sgn( rest ) ) {
+		// If rest is odd
+		if ( mpz_tstbit( rest, 0 ) ) {
+			// tmp = rop * partiallyExponented
+			mpz_mul( tmp, rop, partiallyExponented );
+			// rop = tmp % mod
+			mpz_mod( rop, tmp, mod );
+		}
+		// tmp = rest >> 2
+		mpz_tdiv_q_2exp( tmp, rest, 1 );
+		// rest = tmp
+		mpz_set( rest, tmp );
+		
+		// tmp = partiallyExponented ^^ 2
+		mpz_mul( tmp, partiallyExponented, partiallyExponented );
+		// partiallyExponented = tmp % mod
+		mpz_mod( partiallyExponented, tmp, mod );
+	}
+	
+	mpz_clear( tmp );
+	mpz_clear( partiallyExponented );
+}
+
+/*----- Helpers -----*/
 
 std::ostream& operator << ( std::ostream& out, const mpz_t& nbr )
 {
@@ -39,6 +86,8 @@ std::ostream& operator << ( std::ostream& out, rsakey_t key)
 	return out;
 }
 
+/*----- RSA routines -----*/
+
 void generate_e ( mpz_ptr e, gmp_randstate_t randState, mpz_srcptr phi )
 {
 
@@ -62,9 +111,12 @@ void encrypt (mpz_ptr res, mpz_srcptr message, rsakey_t key)
 
 #define decrypt encrypt
 
+/*----- Main algorithme -----*/
+
 /* Main subroutine */
 int main( int, char** )
 {
+
 	mp_bitcnt_t bits = 64;
 	mpz_t d, e, n;
 	mpz_t tmp1, tmp2;
@@ -164,6 +216,7 @@ int main( int, char** )
 	std::cout << "Encrypted: "<< C << std::endl;
 	decrypt( MM, C, priv );
 	std::cout << "Decrypted: "<< MM << std::endl;
+	
 
 	/* Clean up the GMP integers */
 	mpz_clear( p_minus_1 );
@@ -181,5 +234,7 @@ int main( int, char** )
 	mpz_clear( M );
 	mpz_clear( C );
 	mpz_clear( MM );
+	
+	return 0;
 }
 
