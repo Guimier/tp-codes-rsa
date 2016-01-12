@@ -20,7 +20,18 @@ typedef unsigned long int ulong;
 
 /*----- Rewritten functions -----*/
 
-// Not managing the exp < 0 case since RSA does not need it.
+/** Compute an exponentiation in modulo.
+ * Unlike `mpz_powm`, this function does not work for `exp` < 0 since
+ * the RSA algorithm does not require it.
+ * @param rop
+ *     Output: `base` ^^ `exp` % `mod`.
+ * @param base
+ *     Exponentiation base.
+ * @param exp
+ *     Exponent.
+ * @param mod
+ *     Modulus.
+ */
 void rew_powm( mpz_t rop, const mpz_t base, const mpz_t exp, const mpz_t mod )
 {
 	// rop = 1
@@ -62,6 +73,16 @@ void rew_powm( mpz_t rop, const mpz_t base, const mpz_t exp, const mpz_t mod )
 	mpz_clear( partiallyExponented );
 }
 
+/** Get a random integer.
+ * @param rop
+ *     Output.
+ * @param state
+ *     Random state.
+ * @param min
+ *     Minimal output (inclusive).
+ * @param max
+ *     Maximal output (inclusive).
+ */
 void loc_random( mpz_t rop, gmp_randstate_t state, ulong min, mpz_t max )
 {
 	mpz_t size;
@@ -76,6 +97,21 @@ void loc_random( mpz_t rop, gmp_randstate_t state, ulong min, mpz_t max )
 	mpz_clear( size );
 }
 
+/** Tests whether an integer is composite.
+ * @param s
+ *     Precomputed `s`, see `nm1`.
+ * @param t
+ *     Precomputed `t`, see `nm1`.
+ * @param a
+ *     Potential Miller witness.
+ * @param nm1
+ *     `n` minus 1, precomputed.
+ *     n - 1 = t ^^ s.
+ * @param n
+ *     Tested number.
+ * @return
+ *     `true` if composite, `false` if not sure.
+ */
 bool isCompositeRabinMiller( ulong s, const mpz_t t, const mpz_t a, const mpz_t nm1, const mpz_t n )
 {
 	mpz_t x;
@@ -101,6 +137,14 @@ clearAndReturn:
 	return res;
 }
 
+/** Test whether an integer is prime.
+ * @param n
+ *     Tested number.
+ * @param k
+ *     Suspicion level.
+ * @return
+ *     `false` if *not* prime, `true` if it *could* be.
+ */
 bool isProbablyPrimeRabinMiller( mpz_t n, ulong k )
 {
 	gmp_randstate_t randState;
@@ -139,6 +183,12 @@ bool isProbablyPrimeRabinMiller( mpz_t n, ulong k )
 	return res;
 }
 
+/** Get the first prime number following a given one.
+ * @param rop
+ *     Output.
+ * @param init
+ *     Exclusive minimal bound for the scan.
+ */
 void rew_nextprime( mpz_t rop, const mpz_t init )
 {
 	mpz_set( rop, init );
@@ -153,9 +203,17 @@ void rew_nextprime( mpz_t rop, const mpz_t init )
 		mpz_add_ui( rop, rop, 2 );
 	} while ( ! isProbablyPrimeRabinMiller( rop, SUSPICION ) );
 }
-
-void rew_invert (mpz_ptr res, mpz_srcptr b, mpz_srcptr n)
+/** Compute the modular invert using the extended Euler algorithm.
+ * @param rop
+ *     Output.
+ * @param b
+ *     Number whose invert is searched.
+ * @param n
+ *     Modulus.
+ */
+void rew_invert (mpz_ptr rop, mpz_srcptr b, mpz_srcptr n)
 {
+	//Temporary variables.
 	mpz_t b0, n0, t0, t, q, r, tmp1, tmp2, tmp3, tmp4;
 	
 	mpz_init( b0 );
@@ -177,6 +235,7 @@ void rew_invert (mpz_ptr res, mpz_srcptr b, mpz_srcptr n)
 	mpz_mul( tmp1, q, b0 );
 	mpz_sub( r, n0, tmp1 );
 	
+	//The extended Euler algorithm
 	while (mpz_cmp_si(r, 0) > 0)
 	{	
 		mpz_mul ( tmp2,  q,  t );
@@ -204,8 +263,10 @@ void rew_invert (mpz_ptr res, mpz_srcptr b, mpz_srcptr n)
 	{
 		mpz_add(t, t, n);
 	}
-	mpz_set(res, t);
+	//Return the result.
+	mpz_set(rop, t);
 	
+	//Free memory.
 	mpz_clear( b0 );
 	mpz_clear( n0 );
 	mpz_clear( t0 );
@@ -219,6 +280,7 @@ void rew_invert (mpz_ptr res, mpz_srcptr b, mpz_srcptr n)
 }
 
 /*----- Helpers -----*/
+
 
 std::ostream& operator << ( std::ostream& out, const mpz_t& nbr )
 {
