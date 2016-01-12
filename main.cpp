@@ -10,10 +10,13 @@
 #define PRIMESIZE (BITSTRENGTH / 2)  /* size of the primes p and q  */
 
 #define GN_POWM rew_powm
-#define GN_NEXTPRIME mpz_nextprime
+#define GN_NEXTPRIME rew_nextprime
 #define GN_INVERT mpz_invert
 
+#define SUSPICION 30
+
 typedef std::pair<mpz_srcptr, mpz_srcptr> rsakey_t;
+typedef unsigned long int ulong;
 
 /*----- Rewritten functions -----*/
 
@@ -38,17 +41,16 @@ void rew_powm( mpz_t rop, const mpz_t base, const mpz_t exp, const mpz_t mod )
 	
 	// mpz_sgn is an easy way to test ( rest != 0 )
 	while ( mpz_sgn( rest ) ) {
-		// If rest is odd
-		if ( mpz_tstbit( rest, 0 ) ) {
+		if ( mpz_odd_p( rest ) ) {
 			// tmp = rop * partiallyExponented
 			mpz_mul( tmp, rop, partiallyExponented );
 			// rop = tmp % mod
 			mpz_mod( rop, tmp, mod );
 		}
 		// tmp = rest >> 2
-		mpz_tdiv_q_2exp( tmp, rest, 1 );
+		mpz_tdiv_q_2exp( rest, rest, 1 );
 		// rest = tmp
-		mpz_set( rest, tmp );
+		// mpz_set( rest, tmp );
 		
 		// tmp = partiallyExponented ^^ 2
 		mpz_mul( tmp, partiallyExponented, partiallyExponented );
@@ -58,6 +60,100 @@ void rew_powm( mpz_t rop, const mpz_t base, const mpz_t exp, const mpz_t mod )
 	
 	mpz_clear( tmp );
 	mpz_clear( partiallyExponented );
+}
+
+void loc_random( mpz_t rop, gmp_randstate_t state, ulong min, mpz_t max )
+{
+	mpz_t size;
+	mpz_init( size );
+	
+	mpz_sub_ui( size, max, min );
+	mpz_add_ui( size, size, 1 );
+	
+	mpz_urandomm( rop, state, size );
+	mpz_add_ui( rop, rop, min );
+	
+	mpz_clear( size );
+}
+
+bool isCompositeRabinMiller( ulong s, const mpz_t t, const mpz_t a, const mpz_t nm1, const mpz_t n )
+{
+	mpz_t x;
+	mpz_init( x );
+	GN_POWM( x, a, t, n );
+	bool res = true;
+	
+	if ( ! mpz_cmp_ui( x, 1 ) || ! mpz_cmp( x, nm1 ) ) {
+		res = false;
+		goto clearAndReturn;
+	}
+	for ( ulong r = 1; r < s; ++r ) {
+		mpz_mul( x, x, x );
+		mpz_mod( x, x, n );
+		if ( ! mpz_cmp( x, nm1 ) ) {
+			res = false;
+			goto clearAndReturn;
+		}
+	}
+
+clearAndReturn:
+	mpz_clear( x );
+	return res;
+}
+
+bool isProbablyPrimeRabinMiller( mpz_t n, ulong k )
+{
+	gmp_randstate_t randState;
+	gmp_randinit_mt( randState );
+	
+	mpz_t nm1;
+	mpz_init( nm1 );
+	mpz_sub_ui( nm1, n, 1 ); // n minus 1
+	
+	mpz_t t;
+	ulong s = 0;
+	mpz_init( t );
+	mpz_set( t, nm1 );
+	// t is even
+	while ( ! mpz_tstbit( t, 0 ) ) {
+		++s;
+		// t = t >> 2
+		mpz_tdiv_q_2exp( t, t, 1 );
+	}
+	
+	mpz_t a;
+	mpz_init( a );
+	
+	bool res = true;
+	ulong i = 0;
+	while ( res && i < k ) {
+		loc_random( a, randState, 2, nm1 );
+		res = ! isCompositeRabinMiller( s, t, a, nm1, n );
+		++i;
+	}
+	
+	mpz_clear( a );
+	mpz_clear( nm1 );
+	mpz_clear( t );
+	
+	return res;
+}
+
+void rew_nextprime( mpz_t rop, const mpz_t init )
+{
+	mpz_set( rop, init );
+	std::cout << "Starting from " << init << std::endl;
+	if ( mpz_even_p( rop ) ) {
+		mpz_sub_ui( rop, rop, 1 );
+	}
+	if ( mpz_cmp_ui( rop, 1 ) < 0 ) {
+		mpz_set_ui( rop, 1 );
+	}
+	
+	do {
+		mpz_add_ui( rop, rop, 2 );
+		std::cout << "Testing " << rop << std::endl;
+	} while ( ! isProbablyPrimeRabinMiller( rop, SUSPICION ) );
 }
 
 /*----- Helpers -----*/
@@ -121,7 +217,6 @@ int main( int, char** )
 	mpz_t d, e, n;
 	mpz_t tmp1, tmp2;
 	mpz_t M, C, MM;
-	gmp_randstate_t randState;
 	
 	/* Initialize the GMP integers */
 	mpz_init( d );
@@ -134,6 +229,8 @@ int main( int, char** )
 	mpz_init( C );
 	mpz_init( MM );
 	
+
+	gmp_randstate_t randState;
 	gmp_randinit_mt( randState );
 
 	/* This function creates the keys. The basic algorithm is...
@@ -154,9 +251,9 @@ int main( int, char** )
 	mpz_init( q );
 	
 	mpz_urandomb( tmp1, randState, bits );
-	GN_NEXTPRIME ( p, tmp1 );
+	GN_NEXTPRIME( p, tmp1 );
 	mpz_urandomb( tmp1, randState, bits );
-	GN_NEXTPRIME ( q, tmp1 );
+	GN_NEXTPRIME( q, tmp1 );
 
 	std::cout << "Random Prime 'p' = " << p <<  std::endl;
 	std::cout << "Random Prime 'q' = " << q <<  std::endl;
@@ -195,7 +292,7 @@ int main( int, char** )
 	 *  Step 4 : Calculate unique d such that ed = 1(mod x)
 	 */
 	//mpz_init_set_str( d, "1019", 0 );
-	GN_INVERT ( d, e, phi );
+	GN_INVERT( d, e, phi );
 	std::cout << "\t d = " << d << std::endl << std::endl;
 	
 	rsakey_t pub = std::make_pair( e, n );
