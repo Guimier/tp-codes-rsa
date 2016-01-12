@@ -62,12 +62,67 @@ void encrypt (mpz_ptr res, mpz_srcptr message, rsakey_t key)
 
 #define decrypt encrypt
 
+void rew_invert (mpz_ptr res, mpz_srcptr b, mpz_srcptr n)
+{
+	mpz_t b0,n0, t0 ,t,q,r ,tmp1,tmp2,tmp3,tmp4;
+	
+	mpz_init(b0);
+	mpz_init(n0);
+	mpz_init(t0);
+	mpz_init(t);
+	mpz_init(q);
+	mpz_init(r);
+	mpz_init( tmp1 );
+	mpz_init( tmp2 );
+	mpz_init( tmp3 );
+	mpz_init( tmp4 );
+	
+	mpz_set(b0, b);
+	mpz_set(n0, n);
+	
+	mpz_set_ui(t, 1);
+	mpz_fdiv_q(q,n,b);
+	mpz_mul(tmp1,q,b0);
+	mpz_sub(r,n0,tmp1);
+	
+	while (mpz_cmp_si(r,0) > 0)
+	{	
+		mpz_mul (tmp2, q, t);
+		mpz_sub(tmp2,t0,tmp2);
+			if( mpz_cmp_si(tmp2,0) > 0)
+			{
+				mpz_cdiv_r(tmp2,tmp2,n);
+			}
+			else
+			{	
+				mpz_neg(tmp2,tmp2);
+				mpz_fdiv_r(tmp3, tmp2,n);
+				mpz_sub(tmp2,n,tmp3);
+			}
+		mpz_set(t0,t);
+		mpz_set(t, tmp2);
+		mpz_set(n0,b0);
+		mpz_set(b0, r);
+		mpz_fdiv_q(q,n0,b0);
+		mpz_mul(tmp4,q,b0);
+		mpz_sub(r,n0,tmp4);
+	}
+
+if(mpz_cmp_si(t,0)<0)
+{
+	mpz_add(t,t,n);
+	}
+
+mpz_set(res,t);
+	
+	
+}
 /* Main subroutine */
 int main( int, char** )
 {
 	mp_bitcnt_t bits = 64;
 	mpz_t d, e, n;
-	mpz_t tmp1, tmp2;
+	mpz_t tmp1, tmp2,tmp3,s1,t1;
 	mpz_t M, C, MM;
 	gmp_randstate_t randState;
 	
@@ -78,6 +133,11 @@ int main( int, char** )
 
 	mpz_init( tmp1 );
 	mpz_init( tmp2 );
+	mpz_init( tmp3 );
+	mpz_init( s1 );
+	mpz_init( t1 );
+	mpz_set_ui(s1,595456);
+	mpz_set_ui(t1,7895);
 	mpz_init( M );
 	mpz_init( C );
 	mpz_init( MM );
@@ -164,7 +224,10 @@ int main( int, char** )
 	std::cout << "Encrypted: "<< C << std::endl;
 	decrypt( MM, C, priv );
 	std::cout << "Decrypted: "<< MM << std::endl;
-
+	
+	rew_invert( tmp3 ,t1,s1);
+	
+	std::cout << (tmp3) << std::endl;
 	/* Clean up the GMP integers */
 	mpz_clear( p_minus_1 );
 	mpz_clear( q_minus_1 );
