@@ -15,7 +15,7 @@ OBJETS=$(SOURCES:%.cpp=%.o)
 
 #Compilateur et options de compilation
 CCPP=g++
-CFLAGS= -W -Wall -Wextra -pedantic -std=c++11
+CFLAGS= -W -Wall -Wextra -Werror -Wno-unused-parameter -pedantic -std=c++11
 LFLAGS= -L . -lm -lgmp
 
 #R�le explicite de construction de l'ex�utable
