@@ -142,7 +142,6 @@ bool isProbablyPrimeRabinMiller( mpz_t n, ulong k )
 void rew_nextprime( mpz_t rop, const mpz_t init )
 {
 	mpz_set( rop, init );
-	std::cout << "Starting from " << init << std::endl;
 	if ( mpz_even_p( rop ) ) {
 		mpz_sub_ui( rop, rop, 1 );
 	}
@@ -152,7 +151,6 @@ void rew_nextprime( mpz_t rop, const mpz_t init )
 	
 	do {
 		mpz_add_ui( rop, rop, 2 );
-		std::cout << "Testing " << rop << std::endl;
 	} while ( ! isProbablyPrimeRabinMiller( rop, SUSPICION ) );
 }
 
